@@ -1,0 +1,24 @@
+{
+  "name": "s3-copy-proxy",
+  "version": "1.0.0",
+  "description": "A proxy which can cache items from a source bucket into the aws region where the key was requested.",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/taskcluster/s3-copy-proxy.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/taskcluster/s3-copy-proxy/issues"
+  },
+  "homepage": "https://github.com/taskcluster/s3-copy-proxy",
+  "dependencies": {
+    "aws-sdk": "^2.1.26",
+    "aws-sdk-promise": "0.0.2",
+    "babel": "^5.2.6"
+  }
+}
