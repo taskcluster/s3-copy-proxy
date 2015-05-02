@@ -18,6 +18,18 @@ function generateBuffer(bytes) {
   return buf;
 }
 
+async function expectRedirect(url) {
+  // Redirect without any follows will throw..
+  try {
+    await request.get(url).redirects(0).end();
+  } catch (e) {
+    if (!e.response.redirect) throw e;
+    return e.response;
+  }
+  throw new Error('Did not redirect!');
+}
+
+
 suite('proxy', function() {
   // TODO: Refactor S3 tests to be generic enough to run outside of our
   //       mozilla-taskcluster account.
@@ -45,14 +57,14 @@ suite('proxy', function() {
       .digest('hex');
 
     // Upload the source !
-    let uploadResult = await sourceS3.putObject({
+    let { data: uploadResult } = await sourceS3.putObject({
       Body: body,
       Key: key,
       Bucket: SOURCE_BUCKET
     }).promise();
 
     // This is purely to validate assumptions about what aws does...
-    assert.equal(`"${md5}"`, uploadResult.data.ETag);
+    assert.equal(`"${md5}"`, uploadResult.ETag);
 
     // First request should directly send content...
     let proxyUrl = `${url}${key}`;
@@ -61,6 +73,22 @@ suite('proxy', function() {
     // Should pass through the raw content and be of the right size...
     assert.equal(passThroughRes.status, 200);
     assert.equal(parseInt(passThroughRes.headers['content-length'], 10), size);
+
+    // Validate that the proxy uploaded the object as well...
+    let { data: head } = await destS3.headObject({
+      Key: key,
+      Bucket: DEST_BUCKET
+    }).promise();
+
+    assert.equal(parseInt(head.ContentLength, 10), size);
+    assert.equal(head.Etag, uploadResult.Etag);
+
+    let redirectReq = await expectRedirect(proxyUrl);
+    assert.equal(redirectReq.status, 302);
+
+    // Final sanity check to ensure thing work out of the box...
+    let redirectRes = await request.get(proxyUrl).buffer(true).end();
+    assert.equal(redirectRes.text, body.toString());
   });
 
 })

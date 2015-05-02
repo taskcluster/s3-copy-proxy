@@ -1,22 +1,47 @@
 package main
 
 import (
-	//"github.com/mitchellh/goamz/aws"
-	//"github.com/mitchellh/goamz/s3"
 	"fmt"
+	"github.com/goamz/goamz/aws"
+	"github.com/goamz/goamz/s3"
 	"log"
 	"net/http"
 	"net/url"
 	"strconv"
-	//"os"
 
 	docopt "github.com/docopt/docopt-go"
 )
 
+func strToRegion(region string) (*aws.Region, error) {
+	switch region {
+	case "us-east-1":
+		return &aws.USEast, nil
+	case "us-west-1":
+		return &aws.USWest, nil
+	case "us-west-2":
+		return &aws.USWest2, nil
+	case "eu-west-1":
+		return &aws.EUWest, nil
+	case "eu-central-1":
+		return &aws.EUCentral, nil
+	case "ap-southeast-1":
+		return &aws.APSoutheast, nil
+	case "ap-southeast-2":
+		return &aws.APSoutheast2, nil
+	case "ap-northeast-1":
+		return &aws.APNortheast, nil
+	case "sa-east-1":
+		return &aws.SAEast, nil
+	case "cn-north-1":
+		return &aws.CNNorth, nil
+	}
+
+	return nil, fmt.Errorf("Unknown region %s", region)
+}
+
 type ProxyConfig struct {
 	Source *url.URL
-	Region string
-	Bucket string
+	Bucket *s3.Bucket
 	Prefix string
 }
 
@@ -77,10 +102,22 @@ func main() {
 		log.Fatalf("Error parsing source into url : %v", err)
 	}
 
+	awsRegionObj, err := strToRegion(region)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	auth, err := aws.EnvAuth()
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	client := s3.New(auth, *awsRegionObj)
+	s3Bucket := client.Bucket(bucket)
+
 	config := ProxyConfig{
 		Source: url,
-		Region: region,
-		Bucket: bucket,
+		Bucket: s3Bucket,
 		Prefix: prefix,
 	}
 
