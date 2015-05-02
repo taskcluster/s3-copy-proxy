@@ -1,0 +1,29 @@
+{
+  "name": "s3-copy-proxy",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Only for testing the go package!",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/taskcluster/s3-copy-proxy.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/taskcluster/s3-copy-proxy/issues"
+  },
+  "homepage": "https://github.com/taskcluster/s3-copy-proxy",
+  "devDependencies": {
+    "aws-sdk": "^2.1.26",
+    "aws-sdk-promise": "0.0.2",
+    "babel": "^5.2.6",
+    "event-to-promise": "^0.3.2",
+    "mocha": "^2.2.4",
+    "mz": "^1.3.0",
+    "superagent": "^1.2.0"
+  }
+}
