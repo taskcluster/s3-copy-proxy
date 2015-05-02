@@ -1,1 +1,3 @@
---ui tdd --compilers js:babel/register
+--ui tdd
+--compilers js:babel/register
+--timeout 1min

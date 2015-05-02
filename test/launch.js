@@ -6,7 +6,7 @@ import net from 'net';
 const DEFAULTS = {
   source: 'https://s3-us-west-2.amazonaws.com/test-bucket-for-any-garbage/',
   region: 'us-west-1',
-  bucket: 'test-bucket-for-any-garbage',
+  bucket: 's3-copy-proxy-tests',
   prefix: ''
 }
 
@@ -27,7 +27,6 @@ export default async function(options) {
   // Run the build first...
   let buildProc = createProc(`go build -o ${TEST_TARGET}`);
   let [code] = await eventToPromise(buildProc, 'exit');
-  console.log('!!')
   if (code !== 0) {
     throw new Error('Failed to build go binary....');
   }
