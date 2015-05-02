@@ -119,11 +119,8 @@ func (self Routes) ServeHTTP(res http.ResponseWriter, req *http.Request) {
 			s3.PublicRead,
 			s3.Options{},
 		)
-
 		log.Printf("%s", contentLength)
+	} else {
+		io.Copy(res, proxyResp.Body)
 	}
-
-	// Proxy the proxyResponse body from the endpoint to our response.
-	io.Copy(res, proxyResp.Body)
-	proxyResp.Body.Close()
 }
