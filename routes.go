@@ -69,8 +69,13 @@ func (self Routes) ServeHTTP(res http.ResponseWriter, req *http.Request) {
 		if key == "Connection" || key == "Host" {
 			continue
 		}
-
 		proxyReq.Header.Set(key, req.Header.Get(key))
+	}
+
+	// AWS will _not_ sent back content length if we don't set these in some
+	// cases.
+	if req.Header.Get("Accept-Encoding") == "" {
+		proxyReq.Header.Set("Accept-Encoding", "gzip, deflate")
 	}
 
 	if err != nil {
@@ -91,6 +96,7 @@ func (self Routes) ServeHTTP(res http.ResponseWriter, req *http.Request) {
 	// Map the headers from the proxy back into our proxyResponse
 	headersToSend := res.Header()
 	for key, _ := range proxyResp.Header {
+		log.Printf("Response header %s = %s", key, proxyResp.Header.Get(key))
 		headersToSend.Set(key, proxyResp.Header.Get(key))
 	}
 
