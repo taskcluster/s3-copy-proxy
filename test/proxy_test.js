@@ -29,6 +29,15 @@ async function expectRedirect(url) {
   throw new Error('Did not redirect!');
 }
 
+async function get(url) {
+  return await request.get(url).buffer(true).end();
+}
+
+function createMd5(buffer) {
+  return crypto.createHash('md5')
+    .update(buffer)
+    .digest('hex');
+}
 
 suite('proxy', function() {
   // TODO: Refactor S3 tests to be generic enough to run outside of our
@@ -45,30 +54,35 @@ suite('proxy', function() {
     server.kill();
   });
 
-  test('upload and proxy', async () => {
-    // Allocate a large empty buffer for upload...
-    let time = Date.now();
-    let size = 1024 * 1024 * 1;
-    let body = generateBuffer(size);
-    let key = `proxy-test-${Date.now()}`;
-
-    let md5 = crypto.createHash('md5')
-      .update(body)
-      .digest('hex');
-
+  async function putObject(key, body) {
     // Upload the source !
-    let { data: uploadResult } = await sourceS3.putObject({
+    let { data } = await sourceS3.putObject({
       Body: body,
       Key: key,
       Bucket: SOURCE_BUCKET
     }).promise();
+    return data;
+  }
 
+  async function upload(size) {
+    // Allocate a large empty buffer for upload...
+    let body = generateBuffer(size);
+    let key = `proxy-test-${Date.now()}`;
+
+    let uploadResult = await putObject(key, body);
+    let md5 = createMd5(body);
+
+    return { key, size, proxyUrl: `${url}${key}`, md5, uploadResult, body };
+  }
+
+  test('pass through then redirect', async () => {
+    let size = 1024 * 1024 * 1;
+    let { key, md5, proxyUrl, uploadResult, body } = await upload(size);
     // This is purely to validate assumptions about what aws does...
     assert.equal(`"${md5}"`, uploadResult.ETag);
 
     // First request should directly send content...
-    let proxyUrl = `${url}${key}`;
-    let passThroughRes = await request.get(proxyUrl).buffer(true).end();
+    let passThroughRes = await get(proxyUrl);
 
     // Should pass through the raw content and be of the right size...
     assert.equal(passThroughRes.status, 200);
@@ -87,7 +101,7 @@ suite('proxy', function() {
     assert.equal(redirectReq.status, 302);
 
     // Final sanity check to ensure thing work out of the box...
-    let redirectRes = await request.get(proxyUrl).buffer(true).end();
+    let redirectRes = await get(proxyUrl);
     assert.equal(redirectRes.text, body.toString());
   });
 
