@@ -2,6 +2,9 @@ import { spawn } from 'mz/child_process'
 import eventToPromise from 'event-to-promise';
 import http from 'http';
 import net from 'net';
+import Debug from 'debug';
+
+const debug = Debug('launch');
 
 const DEFAULTS = {
   source: 'https://s3-us-west-2.amazonaws.com/test-bucket-for-any-garbage/',
@@ -54,7 +57,9 @@ export default async function(options) {
       eventToPromise(sock, 'error').then(() => false),
       eventToPromise(sock, 'connect').then(() => true)
     ]);
+    debug('Waiting for socket ready?', ready)
     if (!ready) continue;
+    debug('Socket is ready...')
     break;
   }
 

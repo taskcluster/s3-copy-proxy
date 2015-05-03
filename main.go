@@ -123,7 +123,7 @@ func main() {
 
 	log.Printf("Proxy server starting on port %d", port)
 
-	routes := Routes{config: &config}
+	routes := NewRoutes(&config)
 	startErr := http.ListenAndServe(fmt.Sprintf(":%d", port), routes)
 	if startErr != nil {
 		log.Fatal(startErr)

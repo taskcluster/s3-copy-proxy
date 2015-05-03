@@ -3,6 +3,7 @@ import request from 'superagent-promise';
 import { S3 } from 'aws-sdk-promise';
 import crypto from 'crypto';
 import assert from 'assert';
+import eventToPromise from 'event-to-promise';
 
 const SOURCE_BUCKET = 'test-bucket-for-any-garbage';
 const DEST_BUCKET = 's3-copy-proxy-tests';
@@ -23,7 +24,7 @@ async function expectRedirect(url) {
   try {
     await request.get(url).redirects(0).end();
   } catch (e) {
-    if (!e.response.redirect) throw e;
+    if (!e.response || !e.response.redirect) throw e;
     return e.response;
   }
   throw new Error('Did not redirect!');
@@ -31,6 +32,15 @@ async function expectRedirect(url) {
 
 async function get(url) {
   return await request.get(url).buffer(true).end();
+}
+
+async function getResponse(url) {
+  let req = request.get(url).redirects(0);
+  req.end();
+  return await Promise.race([
+    eventToPromise(req, 'error').then(() => { throw e; }),
+    eventToPromise(req, 'response')
+  ]);
 }
 
 function createMd5(buffer) {
@@ -75,6 +85,30 @@ suite('proxy', function() {
     return { key, size, proxyUrl: `${url}${key}`, md5, uploadResult, body };
   }
 
+  test('invalid (or unknown) resource in the source', async () => {
+    let proxyUrl = `${url}wtfnobodyseriouslyhasthiskeyright`;
+    let res = await expectRedirect(proxyUrl);
+    assert(
+      res.header.location.indexOf(SOURCE_BUCKET) !== -1,
+      'When encountering non 200 response redirect back to source'
+    );
+  });
+
+  test('second request will wait until s3 upload', async () => {
+    let size = 1024 * 1024 * 1;
+    let { key, md5, proxyUrl, uploadResult } = await upload(size);
+
+    let firstResponse = await getResponse(proxyUrl);
+    let secondResponse = await getResponse(proxyUrl);
+
+    assert.equal(firstResponse.statusCode, 200);
+    assert.equal(secondResponse.statusCode, 302);
+    assert(
+      secondResponse.headers.location.indexOf(DEST_BUCKET) !== -1,
+      'Redirects to destination bucket'
+    );
+  });
+
   test('pass through then redirect', async () => {
     let size = 1024 * 1024 * 1;
     let { key, md5, proxyUrl, uploadResult, body } = await upload(size);
@@ -99,6 +133,10 @@ suite('proxy', function() {
 
     let redirectReq = await expectRedirect(proxyUrl);
     assert.equal(redirectReq.status, 302);
+    assert.ok(
+      redirectReq.headers.location.indexOf(DEST_BUCKET) !== -1,
+      'Redirects to detination'
+    );
 
     // Final sanity check to ensure thing work out of the box...
     let redirectRes = await get(proxyUrl);
