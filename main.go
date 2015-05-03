@@ -57,15 +57,16 @@ region.
 Note it is expected that environment variables will be used to pass AWS credentails...
 
   Usage:
-    proxy --source=<host> --region=<region> --bucket=<name> [--prefix=<path> --port=<port>]
+    proxy --source=<host> --region=<region> --bucket=<name> [--prefix=<path> --port=<port> --metadata-url=<url>]
     proxy --help
 
   Options:
-    --source=<host>   Where to replicate content from.
-    --region=<region> AWS Region where the bucket resides in.
-    --bucket=<name>   Bucket Name.
-    --prefix=<path>   Prefix to use within bucket when replicating. [deafult:]
-    --port=<number>   Port to bind to [default: 8080]
+    --source=<host>     Where to replicate content from.
+    --region=<region>   AWS Region where the bucket resides in.
+    --bucket=<name>     Bucket Name.
+    --prefix=<path>     Prefix to use within bucket when replicating. [deafult:]
+    --port=<number>     Port to bind to [default: 8080]
+		--metdata-url=<url> Location where to pull metadata for this instance by default assumes aws [deafult:]
 
   Examples:
     proxy --source=https://s3-us-west-2.amazonaws.com/taskcluster-public-artifacts \
@@ -88,6 +89,14 @@ func main() {
 	port, err := strconv.Atoi(arguments["--port"].(string))
 	if err != nil {
 		log.Fatalf("Cannot parse port into int: %v", err)
+	}
+
+	var metadataURL string
+	metadata := arguments["--metadata-url"]
+	if metadata == nil {
+		metadataURL = ""
+	} else {
+		metadataURL = metadata.(string)
 	}
 
 	var prefix string
@@ -122,6 +131,23 @@ func main() {
 	}
 
 	log.Printf("Proxy server starting on port %d", port)
+
+	hostType := GetHostType(metadataURL)
+	hostDetails, err := hostType.Details()
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	hostDesc := hostType.Description()
+
+	log.Printf("Host Type: %s", hostDesc)
+	log.Printf(
+		"hostname=%s region=%s instance-id=%s instance-type=%s",
+		hostDetails.Hostname,
+		hostDetails.Region,
+		hostDetails.InstanceID,
+		hostDetails.InstanceType,
+	)
 
 	routes := NewRoutes(&config)
 	startErr := http.ListenAndServe(fmt.Sprintf(":%d", port), routes)
