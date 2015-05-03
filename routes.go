@@ -15,6 +15,7 @@ import (
 var httpClient = &http.Client{}
 
 const MAX_SOURCE_PULL_WAIT = time.Minute
+const MAX_WAIT_HEADER = "x-max-wait-duration"
 
 type Routes struct {
 	config   *ProxyConfig
@@ -159,6 +160,27 @@ func (self *Routes) waitForSourcePull(
 ) {
 
 	now := time.Now()
+	wait := MAX_SOURCE_PULL_WAIT
+
+	// Primarily for testing we allow setting how long this request should wait
+	// (it cannot be configured to wait for more then the default value though!)
+	configuredWait := req.Header.Get(MAX_WAIT_HEADER)
+	if configuredWait != "" {
+		configuredWaitDuration, err := time.ParseDuration(configuredWait)
+		if err != nil {
+			log.Printf("Could not use configured wait (%s) %v", configuredWait, err)
+		} else {
+			if configuredWaitDuration <= wait {
+				wait = configuredWaitDuration
+			} else {
+				log.Printf(
+					"Configured max wait %d cannot exceed default of %d",
+					configuredWaitDuration,
+					wait,
+				)
+			}
+		}
+	}
 
 	select {
 	case <-*lock:
@@ -169,7 +191,7 @@ func (self *Routes) waitForSourcePull(
 			log.Printf("Successfully watied for %s but no cache was created", key)
 			self.redirectToSource(res, req)
 		}
-	case <-time.After(MAX_SOURCE_PULL_WAIT):
+	case <-time.After(wait):
 		log.Printf("Timed out while waiting for upload of %s", key)
 		self.redirectToSource(res, req)
 	}

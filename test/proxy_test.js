@@ -34,8 +34,8 @@ async function get(url) {
   return await request.get(url).buffer(true).end();
 }
 
-async function getResponse(url) {
-  let req = request.get(url).redirects(0);
+async function getResponse(url, headers={}) {
+  let req = request.get(url).redirects(0).set(headers);
   req.end();
   return await Promise.race([
     eventToPromise(req, 'error').then(() => { throw e; }),
@@ -106,6 +106,23 @@ suite('proxy', function() {
     assert(
       secondResponse.headers.location.indexOf(DEST_BUCKET) !== -1,
       'Redirects to destination bucket'
+    );
+  });
+
+  test('pending request timeout', async () => {
+    let size = 1024 * 1024 * 1;
+    let { key, md5, proxyUrl, uploadResult } = await upload(size);
+
+    let firstResponse = await getResponse(proxyUrl);
+    let secondResponse = await getResponse(proxyUrl, {
+      "x-max-wait-duration": "1s"
+    });
+
+    assert.equal(firstResponse.statusCode, 200);
+    assert.equal(secondResponse.statusCode, 302);
+    assert(
+      secondResponse.headers.location.indexOf(SOURCE_BUCKET) !== -1,
+      'Redirects to source bucket'
     );
   });
 
