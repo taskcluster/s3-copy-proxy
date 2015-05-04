@@ -2,11 +2,14 @@ import { spawn } from 'mz/child_process'
 import eventToPromise from 'event-to-promise';
 import http from 'http';
 import net from 'net';
+import Debug from 'debug';
+
+const debug = Debug('launch');
 
 const DEFAULTS = {
   source: 'https://s3-us-west-2.amazonaws.com/test-bucket-for-any-garbage/',
   region: 'us-west-1',
-  bucket: 'test-bucket-for-any-garbage',
+  bucket: 's3-copy-proxy-tests',
   prefix: ''
 }
 
@@ -27,7 +30,6 @@ export default async function(options) {
   // Run the build first...
   let buildProc = createProc(`go build -o ${TEST_TARGET}`);
   let [code] = await eventToPromise(buildProc, 'exit');
-  console.log('!!')
   if (code !== 0) {
     throw new Error('Failed to build go binary....');
   }
@@ -55,7 +57,9 @@ export default async function(options) {
       eventToPromise(sock, 'error').then(() => false),
       eventToPromise(sock, 'connect').then(() => true)
     ]);
+    debug('Waiting for socket ready?', ready)
     if (!ready) continue;
+    debug('Socket is ready...')
     break;
   }
 
