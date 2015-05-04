@@ -110,7 +110,7 @@ suite('proxy', function() {
   });
 
   test('pending request timeout', async () => {
-    let size = 1024 * 1024 * 1;
+    let size = 1024 * 1024 * 50;
     let { key, md5, proxyUrl, uploadResult } = await upload(size);
 
     let firstResponse = await getResponse(proxyUrl);

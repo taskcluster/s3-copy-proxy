@@ -39,7 +39,6 @@ export default async function(options) {
   server.close();
   opts.port = port;
 
-
   let cmd = [
     `${BUILD_DIR}/${TEST_TARGET}`,
     `--port=${opts.port}`,
