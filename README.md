@@ -32,6 +32,7 @@ regions. To achieve these we use the following principals:
    in the target bucket OR redirected back to the source.)
 
 ### TODO
+  - Use reduced redundancy for destination objectis.
 
   - Additional metrics on resource consumption in addition to those
     metrics we have on states.
