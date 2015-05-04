@@ -14,18 +14,22 @@ import (
 
 var httpClient = &http.Client{}
 
-const MAX_SOURCE_PULL_WAIT = time.Minute
+const MAX_SOURCE_PULL_WAIT = 90 * time.Second
 const MAX_WAIT_HEADER = "x-max-wait-duration"
 
 type Routes struct {
-	config   *ProxyConfig
-	requests requestMutex
+	config         *ProxyConfig
+	requests       requestMutex
+	metrics        *Metrics
+	metricsFactory *MetricFactory
 }
 
-func NewRoutes(config *ProxyConfig) Routes {
+func NewRoutes(config *ProxyConfig, metrics *Metrics, metricsFactory *MetricFactory) Routes {
 	return Routes{
-		config:   config,
-		requests: newRequestMutex(),
+		config:         config,
+		requests:       newRequestMutex(),
+		metrics:        metrics,
+		metricsFactory: metricsFactory,
 	}
 }
 
@@ -75,6 +79,7 @@ func (self *Routes) cacheAndServeFromSource(
 ) {
 	// When we complete serving this free the lock...
 	defer self.requests.Complete(key, lock)
+	uploadStartTime := time.Now()
 
 	// Copy method and body over to the proxy request.
 	sourceURL := self.constructSourceUrl(req.URL)
@@ -134,7 +139,7 @@ func (self *Routes) cacheAndServeFromSource(
 		// The magic is here.. This will allow the S3 upload to occur while
 		// streaming the artifact back...
 		reader := io.TeeReader(proxyResp.Body, res)
-		self.config.Bucket.PutReader(
+		err = self.config.Bucket.PutReader(
 			key,
 			reader,
 			contentLength,
@@ -142,6 +147,20 @@ func (self *Routes) cacheAndServeFromSource(
 			s3.PublicRead,
 			s3.Options{},
 		)
+
+		if err != nil {
+			self.metrics.Send(self.metricsFactory.CacheUploadError(
+				time.Now().Sub(uploadStartTime),
+				contentLength,
+				err,
+			))
+		} else {
+			self.metrics.Send(self.metricsFactory.CacheUpload(
+				time.Now().Sub(uploadStartTime),
+				contentLength,
+			))
+		}
+
 	} else {
 		// We don't care about any of the contents here if we can't cache them so
 		// just redirect the user directly to the source...
@@ -188,11 +207,16 @@ func (self *Routes) waitForSourcePull(
 		log.Printf("%s ready waited for %v", key, waited)
 		redirected := self.attemptCacheRedirect(key, res, req)
 		if !redirected {
+			self.metrics.Send(self.metricsFactory.WaitedForUploadMiss(waited))
 			log.Printf("Successfully watied for %s but no cache was created", key)
 			self.redirectToSource(res, req)
+		} else {
+			self.metrics.Send(self.metricsFactory.WaitedForUpload(waited))
 		}
 	case <-time.After(wait):
+		waited := time.Now().Sub(now)
 		log.Printf("Timed out while waiting for upload of %s", key)
+		self.metrics.Send(self.metricsFactory.CacheTimeout(waited))
 		self.redirectToSource(res, req)
 	}
 }
@@ -204,6 +228,7 @@ func (self Routes) ServeHTTP(res http.ResponseWriter, req *http.Request) {
 
 	// Attempt the initial cache hit...
 	if self.attemptCacheRedirect(key, res, req) {
+		self.metrics.Send(self.metricsFactory.CacheHit())
 		return
 	}
 
@@ -224,6 +249,7 @@ func (self Routes) ServeHTTP(res http.ResponseWriter, req *http.Request) {
 		// source.
 		log.Printf("Error getting lock to pull source artifact %v", err)
 		self.redirectToSource(res, req)
+		self.metrics.Send(self.metricsFactory.CacheErrorRedirect())
 		return
 	}
 

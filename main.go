@@ -149,7 +149,14 @@ func main() {
 		hostDetails.InstanceType,
 	)
 
-	routes := NewRoutes(&config)
+	metrics, err := NewMetrics()
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	metricsFactory := NewMetricFactory(hostDetails, &config)
+
+	routes := NewRoutes(&config, metrics, &metricsFactory)
 	startErr := http.ListenAndServe(fmt.Sprintf(":%d", port), routes)
 	if startErr != nil {
 		log.Fatal(startErr)
