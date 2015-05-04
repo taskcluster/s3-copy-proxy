@@ -83,8 +83,11 @@ func (self *Metrics) SendMetrics() error {
 	self.pendingWrites = []*influxdb.Series{}
 	self.Unlock()
 
-	log.Printf("Sending %d metrics", len(pendingWrites))
-	return self.client.WriteSeries(pendingWrites)
+	if len(pendingWrites) > 0 {
+		log.Printf("Sending %d metrics", len(pendingWrites))
+		return self.client.WriteSeries(pendingWrites)
+	}
+	return nil
 }
 
 // Constructs the metrics sender... This will always succeed but only sends
