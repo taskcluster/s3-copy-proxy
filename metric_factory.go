@@ -35,6 +35,7 @@ func (self *MetricFactory) CacheErrorRedirect() *influxdb.Series {
 			"region",
 			"instanceType",
 			"instanceID",
+			"count",
 		},
 		Points: [][]interface{}{
 			{
@@ -42,6 +43,7 @@ func (self *MetricFactory) CacheErrorRedirect() *influxdb.Series {
 				self.hostDetails.Region,
 				self.hostDetails.InstanceType,
 				self.hostDetails.InstanceID,
+				1,
 			},
 		},
 	}
@@ -56,6 +58,7 @@ func (self *MetricFactory) CacheTimeout(waitDuration time.Duration) *influxdb.Se
 			"instanceType",
 			"instanceID",
 			"waited",
+			"count",
 		},
 		Points: [][]interface{}{
 			{
@@ -64,6 +67,7 @@ func (self *MetricFactory) CacheTimeout(waitDuration time.Duration) *influxdb.Se
 				self.hostDetails.InstanceType,
 				self.hostDetails.InstanceID,
 				waitDuration.Seconds(),
+				1,
 			},
 		},
 	}
@@ -79,6 +83,7 @@ func (self *MetricFactory) CacheUpload(uploadDuration time.Duration, contentLeng
 			"instanceID",
 			"uploadDuration",
 			"contentLength",
+			"count",
 		},
 		Points: [][]interface{}{
 			{
@@ -88,6 +93,7 @@ func (self *MetricFactory) CacheUpload(uploadDuration time.Duration, contentLeng
 				self.hostDetails.InstanceID,
 				uploadDuration.Seconds(),
 				contentLength,
+				1,
 			},
 		},
 	}
@@ -104,6 +110,7 @@ func (self *MetricFactory) CacheUploadError(uploadDuration time.Duration, conten
 			"uploadDuration",
 			"contentLength",
 			"error",
+			"count",
 		},
 		Points: [][]interface{}{
 			{
@@ -114,6 +121,7 @@ func (self *MetricFactory) CacheUploadError(uploadDuration time.Duration, conten
 				uploadDuration.Seconds(),
 				contentLength,
 				err.Error(),
+				1,
 			},
 		},
 	}
@@ -128,6 +136,7 @@ func (self *MetricFactory) WaitedForUpload(time time.Duration) *influxdb.Series 
 			"instanceType",
 			"instanceID",
 			"waitTime",
+			"count",
 		},
 		Points: [][]interface{}{
 			{
@@ -136,6 +145,7 @@ func (self *MetricFactory) WaitedForUpload(time time.Duration) *influxdb.Series 
 				self.hostDetails.InstanceType,
 				self.hostDetails.InstanceID,
 				time.Seconds(),
+				1,
 			},
 		},
 	}
@@ -150,6 +160,7 @@ func (self *MetricFactory) WaitedForUploadMiss(time time.Duration) *influxdb.Ser
 			"instanceType",
 			"instanceID",
 			"time",
+			"count",
 		},
 		Points: [][]interface{}{
 			{
@@ -158,6 +169,7 @@ func (self *MetricFactory) WaitedForUploadMiss(time time.Duration) *influxdb.Ser
 				self.hostDetails.InstanceType,
 				self.hostDetails.InstanceID,
 				time.Seconds(),
+				1,
 			},
 		},
 	}
@@ -171,6 +183,7 @@ func (self *MetricFactory) CacheHit() *influxdb.Series {
 			"region",
 			"instanceType",
 			"instanceID",
+			"count",
 		},
 		Points: [][]interface{}{
 			{
@@ -178,6 +191,7 @@ func (self *MetricFactory) CacheHit() *influxdb.Series {
 				self.hostDetails.Region,
 				self.hostDetails.InstanceType,
 				self.hostDetails.InstanceID,
+				1,
 			},
 		},
 	}
