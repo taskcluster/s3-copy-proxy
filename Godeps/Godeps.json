@@ -1,0 +1,28 @@
+{
+	"ImportPath": "github.com/taskcluster/s3-copy-proxy",
+	"GoVersion": "go1.4.1",
+	"Deps": [
+		{
+			"ImportPath": "github.com/docopt/docopt-go",
+			"Comment": "0.6.1-rc2-24-g7fb3e64",
+			"Rev": "7fb3e64728058525f5940d913d0b854474dcd66a"
+		},
+		{
+			"ImportPath": "github.com/goamz/goamz/aws",
+			"Rev": "ad637a587dd8314770a1084481dd7b5d4fa1232f"
+		},
+		{
+			"ImportPath": "github.com/goamz/goamz/s3",
+			"Rev": "ad637a587dd8314770a1084481dd7b5d4fa1232f"
+		},
+		{
+			"ImportPath": "github.com/influxdb/influxdb/client",
+			"Comment": "v0.8.4-8-g9c31291",
+			"Rev": "9c31291ca0ed6887072d72586de11b5938184008"
+		},
+		{
+			"ImportPath": "github.com/vaughan0/go-ini",
+			"Rev": "a98ad7ee00ec53921f08832bc06ecf7fd600e6a1"
+		}
+	]
+}
