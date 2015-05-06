@@ -1,9 +1,7 @@
 package main
 
 import (
-	"fmt"
 	"github.com/goamz/goamz/s3"
-	"io"
 	"log"
 	"net/http"
 	"net/url"
@@ -71,10 +69,9 @@ func (self *Routes) attemptCacheRedirect(key string, res http.ResponseWriter, re
 	return false
 }
 
-func (self *Routes) cacheAndServeFromSource(
+func (self *Routes) pullFromSource(
 	key string,
 	lock *chan bool,
-	res http.ResponseWriter,
 	req *http.Request,
 ) {
 	// When we complete serving this free the lock...
@@ -88,8 +85,7 @@ func (self *Routes) cacheAndServeFromSource(
 	proxyReq, err := http.NewRequest(req.Method, sourceURL.String(), req.Body)
 	// If we fail to create a request notify the client.
 	if err != nil {
-		res.WriteHeader(500)
-		fmt.Fprintf(res, "Failed to generate proxy request: %s", err)
+		log.Printf("Failed to generate proxy request: %s", err)
 		return
 	}
 
@@ -111,46 +107,46 @@ func (self *Routes) cacheAndServeFromSource(
 	// Issue the proxy request...
 	proxyResp, err := httpClient.Do(proxyReq)
 	if err != nil {
-		res.WriteHeader(500)
-		fmt.Fprintf(res, "Failed during proxy request: %s", err)
+		log.Printf("Failed to fetch from source: %v", err)
 		return
 	}
 
 	// Map the headers from the proxy back into our proxyResponse
-	headersToSend := res.Header()
 	for key, _ := range proxyResp.Header {
 		log.Printf("Response header %s = %s", key, proxyResp.Header.Get(key))
-		headersToSend.Set(key, proxyResp.Header.Get(key))
 	}
 
 	// If the proxy returns a successful status code replicate!
 	if proxyResp.StatusCode == 200 {
 		contentLengthInt, err := strconv.Atoi(proxyResp.Header.Get("Content-Length"))
 		if err != nil {
-			res.WriteHeader(500)
-			fmt.Fprintf(res, "Invalid content length in source object...")
+			log.Printf("Invalid content length in source object...")
+			return
 		}
-
-		res.WriteHeader(proxyResp.StatusCode)
 
 		var contentLength int64
 		contentLength = int64(contentLengthInt)
 
-		// The magic is here.. This will allow the S3 upload to occur while
-		// streaming the artifact back...
-		reader := io.TeeReader(proxyResp.Body, res)
-		err = self.config.Bucket.PutReader(
+		err = self.config.Bucket.PutReaderHeader(
 			key,
-			reader,
+			proxyResp.Body,
 			contentLength,
-			proxyResp.Header.Get("Content-Type"),
+			map[string][]string{
+				// Content Type is important to proxy...
+				"Content-Type": {proxyResp.Header.Get("Content-Type")},
+				// The proxy is intended to be shorter lived then the source so reduced
+				// reduced is ideal...
+				"x-amz-storage-class": {"REDUCED_REDUNDANCY"},
+				// Extra meta data about where/how this objects exists
+				"x-amz-meta-source": {sourceURL.String()},
+			},
 			s3.PublicRead,
-			s3.Options{},
 		)
 
 		if err != nil {
 			self.metrics.Send(self.metricsFactory.CacheUploadError(
 				time.Now().Sub(uploadStartTime),
+				key,
 				contentLength,
 				err,
 			))
@@ -160,12 +156,9 @@ func (self *Routes) cacheAndServeFromSource(
 				contentLength,
 			))
 		}
-
 	} else {
-		// We don't care about any of the contents here if we can't cache them so
 		// just redirect the user directly to the source...
 		proxyResp.Body.Close()
-		self.redirectToSource(res, req)
 	}
 }
 
@@ -254,5 +247,6 @@ func (self Routes) ServeHTTP(res http.ResponseWriter, req *http.Request) {
 	}
 
 	// Pull from the source !
-	self.cacheAndServeFromSource(key, lock, res, req)
+	go self.pullFromSource(key, lock, req)
+	self.waitForSourcePull(key, lock, res, req)
 }

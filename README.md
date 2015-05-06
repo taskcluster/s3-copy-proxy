@@ -34,9 +34,6 @@ regions. To achieve these we use the following principals:
 ### TODO
   - Use reduced redundancy for destination objectis.
 
-  - Additional metrics on resource consumption in addition to those
-    metrics we have on states.
-
   - Document and test non s3 sources (this actually should work now)
 
   - Explore optimizing keys over 5gig (this will outright fail right
