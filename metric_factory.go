@@ -93,7 +93,7 @@ func (self *MetricFactory) CacheUpload(uploadDuration time.Duration, contentLeng
 	}
 }
 
-func (self *MetricFactory) CacheUploadError(uploadDuration time.Duration, contentLength int64, err error) *influxdb.Series {
+func (self *MetricFactory) CacheUploadError(uploadDuration time.Duration, path string, contentLength int64, err error) *influxdb.Series {
 	return &influxdb.Series{
 		Name: CACHE_UPLOAD_ERR,
 		Columns: []string{
@@ -103,6 +103,7 @@ func (self *MetricFactory) CacheUploadError(uploadDuration time.Duration, conten
 			"instanceID",
 			"uploadDuration",
 			"contentLength",
+			"path",
 			"error",
 		},
 		Points: [][]interface{}{
@@ -113,6 +114,7 @@ func (self *MetricFactory) CacheUploadError(uploadDuration time.Duration, conten
 				self.hostDetails.InstanceID,
 				uploadDuration.Seconds(),
 				contentLength,
+				path,
 				err.Error(),
 			},
 		},

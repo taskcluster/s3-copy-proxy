@@ -94,32 +94,25 @@ suite('proxy', function() {
     );
   });
 
-  test('second request will wait until s3 upload', async () => {
-    let size = 1024 * 1024 * 1;
-    let { key, md5, proxyUrl, uploadResult } = await upload(size);
-
-    let firstResponse = await getResponse(proxyUrl);
-    let secondResponse = await getResponse(proxyUrl);
-
-    assert.equal(firstResponse.statusCode, 200);
-    assert.equal(secondResponse.statusCode, 302);
-    assert(
-      secondResponse.headers.location.indexOf(DEST_BUCKET) !== -1,
-      'Redirects to destination bucket'
-    );
-  });
-
   test('pending request timeout', async () => {
     let size = 1024 * 1024 * 50;
     let { key, md5, proxyUrl, uploadResult } = await upload(size);
 
-    let firstResponse = await getResponse(proxyUrl);
-    let secondResponse = await getResponse(proxyUrl, {
-      "x-max-wait-duration": "1s"
-    });
+    let [firstResponse, secondResponse] = await Promise.all([
+      getResponse(proxyUrl),
+      getResponse(proxyUrl, {
+        "x-max-wait-duration": "1s"
+      })
+    ]);
 
-    assert.equal(firstResponse.statusCode, 200);
+    assert.equal(firstResponse.statusCode, 302);
     assert.equal(secondResponse.statusCode, 302);
+
+    assert(
+      firstResponse.headers.location.indexOf(DEST_BUCKET) !== -1,
+      'Redirects to source bucket'
+    );
+
     assert(
       secondResponse.headers.location.indexOf(SOURCE_BUCKET) !== -1,
       'Redirects to source bucket'
@@ -132,12 +125,12 @@ suite('proxy', function() {
     // This is purely to validate assumptions about what aws does...
     assert.equal(`"${md5}"`, uploadResult.ETag);
 
-    // First request should directly send content...
-    let passThroughRes = await get(proxyUrl);
-
-    // Should pass through the raw content and be of the right size...
-    assert.equal(passThroughRes.status, 200);
-    assert.equal(parseInt(passThroughRes.headers['content-length'], 10), size);
+    let redirectReq = await expectRedirect(proxyUrl);
+    assert.equal(redirectReq.status, 302);
+    assert.ok(
+      redirectReq.headers.location.indexOf(DEST_BUCKET) !== -1,
+      'Redirects to detination'
+    );
 
     // Validate that the proxy uploaded the object as well...
     let { data: head } = await destS3.headObject({
@@ -147,13 +140,6 @@ suite('proxy', function() {
 
     assert.equal(parseInt(head.ContentLength, 10), size);
     assert.equal(head.Etag, uploadResult.Etag);
-
-    let redirectReq = await expectRedirect(proxyUrl);
-    assert.equal(redirectReq.status, 302);
-    assert.ok(
-      redirectReq.headers.location.indexOf(DEST_BUCKET) !== -1,
-      'Redirects to detination'
-    );
 
     // Final sanity check to ensure thing work out of the box...
     let redirectRes = await get(proxyUrl);
