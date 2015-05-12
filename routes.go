@@ -134,6 +134,7 @@ func (self *Routes) pullFromSource(
 			map[string][]string{
 				// Content Type is important to proxy...
 				"Content-Type": {proxyResp.Header.Get("Content-Type")},
+				"Content-Encoding": {proxyResp.Header.Get("Content-Encoding")},
 				// The proxy is intended to be shorter lived then the source so reduced
 				// reduced is ideal...
 				"x-amz-storage-class": {"REDUCED_REDUNDANCY"},
